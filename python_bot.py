@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 import logging
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Загрузка переменных окружения из файла .env
 load_dotenv()
@@ -11,6 +12,13 @@ load_dotenv()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Хранение данных
+schedule_data = {}
+votes = {}
+group = {}
+roles = {}
+dungeons = {}
+
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -18,38 +26,60 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         fr'Привет {user.mention_markdown_v2()}\! Используйте /register, чтобы отметиться, когда вы планируете играть\.'
     )
 
-# Обработчик команды /register
-async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Сейчас", callback_data='now'),
-         InlineKeyboardButton("Через 1 час", callback_data='1_hour'),
-         InlineKeyboardButton("Через 2 часа", callback_data='2_hours')],
-    ]
+# Обработчик команды /schedule
+async def schedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    time = context.args[0] if context.args else None
+    if time:
+        schedule_data[time] = schedule_data.get(time, 0) + 1
+        await update.message.reply_text(f'Время {time} предложено для игры.')
+    else:
+        await update.message.reply_text('Пожалуйста, укажите время в формате /schedule HH:MM.')
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
+# Обработчик команды /vote
+async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    time = context.args[0] if context.args else None
+    if time:
+        votes[time] = votes.get(time, 0) + 1
+        await update.message.reply_text(f'Вы проголосовали за время {time}.')
+    else:
+        await update.message.reply_text('Пожалуйста, укажите время в формате /vote HH:MM.')
 
-    await update.message.reply_text('Пожалуйста, выберите, когда вы планируете играть:', reply_markup=reply_markup)
+# Обработчик команды /showschedule
+async def showschedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not schedule_data:
+        await update.message.reply_text('Нет предложенных времен для игры.')
+    else:
+        schedule_text = '\n'.join([f'Время: {time}, Предложено: {count}' for time, count in schedule_data.items()])
+        await update.message.reply_text(f'Предложенные времена:\n{schedule_text}')
 
-# Обработчик нажатий на кнопки
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
+# Обработчик команды /remind
+async def remind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text('Напоминание установлено.')
 
-    # Получение данных о времени
-    time_chosen = query.data
-    user = query.from_user
+# Обработчик команды /group
+async def group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    group[user.id] = user.first_name
+    await update.message.reply_text(f'{user.first_name} добавлен в группу.')
 
-    # Сообщение об успешной регистрации
-    await query.edit_message_text(text=f"{user.first_name} отметился, что будет играть {get_time_text(time_chosen)}.")
+# Обработчик команды /roles
+async def roles(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    role = context.args[0] if context.args else None
+    user = update.effective_user
+    if role:
+        roles[user.id] = role
+        await update.message.reply_text(f'{user.first_name} выбрал роль {role}.')
+    else:
+        await update.message.reply_text('Пожалуйста, укажите роль в формате /roles <роль>.')
 
-# Вспомогательная функция для получения текста времени
-def get_time_text(time_data):
-    time_texts = {
-        'now': 'сейчас',
-        '1_hour': 'через 1 час',
-        '2_hours': 'через 2 часа',
-    }
-    return time_texts.get(time_data, 'в неизвестное время')
+# Обработчик команды /dungeon
+async def dungeon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    dungeon_name = ' '.join(context.args)
+    if dungeon_name:
+        dungeons[dungeon_name] = dungeons.get(dungeon_name, 0) + 1
+        await update.message.reply_text(f'Подземелье {dungeon_name} предложено для прохождения.')
+    else:
+        await update.message.reply_text('Пожалуйста, укажите название подземелья в формате /dungeon <название>.')
 
 def main() -> None:
     # Получение токена из переменных окружения
@@ -58,9 +88,15 @@ def main() -> None:
     # Создание объекта Application
     application = Application.builder().token(token).build()
 
+    # Добавление обработчиков команд
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("register", register))
-    application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(CommandHandler("schedule", schedule))
+    application.add_handler(CommandHandler("vote", vote))
+    application.add_handler(CommandHandler("showschedule", showschedule))
+    application.add_handler(CommandHandler("remind", remind))
+    application.add_handler(CommandHandler("group", group))
+    application.add_handler(CommandHandler("roles", roles))
+    application.add_handler(CommandHandler("dungeon", dungeon))
 
     # Запуск бота
     application.run_polling()
