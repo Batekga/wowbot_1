@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import logging
 import os
 from dotenv import load_dotenv
@@ -12,14 +12,14 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Обработчик команды /start
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    update.message.reply_markdown_v2(
-        fr'Привет {user.mention_markdown_v2()}\! Используйте /register, чтобы отметиться, когда вы планируете играть\.',
+    await update.message.reply_markdown_v2(
+        fr'Привет {user.mention_markdown_v2()}\! Используйте /register, чтобы отметиться, когда вы планируете играть\.'
     )
 
 # Обработчик команды /register
-def register(update: Update, context: CallbackContext) -> None:
+async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
         [InlineKeyboardButton("Сейчас", callback_data='now'),
          InlineKeyboardButton("Через 1 час", callback_data='1_hour'),
@@ -28,19 +28,19 @@ def register(update: Update, context: CallbackContext) -> None:
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    update.message.reply_text('Пожалуйста, выберите, когда вы планируете играть:', reply_markup=reply_markup)
+    await update.message.reply_text('Пожалуйста, выберите, когда вы планируете играть:', reply_markup=reply_markup)
 
 # Обработчик нажатий на кнопки
-def button(update: Update, context: CallbackContext) -> None:
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    query.answer()
+    await query.answer()
 
     # Получение данных о времени
     time_chosen = query.data
     user = query.from_user
 
     # Сообщение об успешной регистрации
-    query.edit_message_text(text=f"{user.first_name} отметился, что будет играть {get_time_text(time_chosen)}.")
+    await query.edit_message_text(text=f"{user.first_name} отметился, что будет играть {get_time_text(time_chosen)}.")
 
 # Вспомогательная функция для получения текста времени
 def get_time_text(time_data):
@@ -55,19 +55,15 @@ def main() -> None:
     # Получение токена из переменных окружения
     token = os.getenv('TELEGRAM_BOT_TOKEN')
 
-    # Создание объекта Updater
-    updater = Updater(token, use_context=True)
+    # Создание объекта Application
+    application = Application.builder().token(token).build()
 
-    dispatcher = updater.dispatcher
-
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("register", register))
-    dispatcher.add_handler(CallbackQueryHandler(button))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("register", register))
+    application.add_handler(CallbackQueryHandler(button))
 
     # Запуск бота
-    updater.start_polling()
-
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
