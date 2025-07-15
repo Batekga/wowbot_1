@@ -1,4 +1,3 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
 import logging
 import os
@@ -54,7 +53,9 @@ def get_time_text(time_data):
 def main() -> None:
     # Получение токена из переменных окружения
     token = os.getenv('TELEGRAM_BOT_TOKEN')
-    updater = Updater(token)
+
+    # Создание объекта Updater с использованием метода builder
+    updater = Updater.builder().token(token).build()
 
     dispatcher = updater.dispatcher
 
