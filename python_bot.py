@@ -55,8 +55,8 @@ def main() -> None:
     # Получение токена из переменных окружения
     token = os.getenv('TELEGRAM_BOT_TOKEN')
 
-    # Создание объекта Updater с использованием метода builder
-    updater = Updater.builder().token(token).build()
+    # Создание объекта Updater
+    updater = Updater(token, use_context=True)
 
     dispatcher = updater.dispatcher
 
